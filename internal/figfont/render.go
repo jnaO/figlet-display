@@ -1,6 +1,9 @@
 package figfont
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // Unlimited is the line width Render uses when width <= 0.
 const Unlimited = 1 << 20
@@ -338,6 +341,24 @@ func (r *renderer) putString(row []rune) {
 		b.WriteRune(c)
 	}
 	r.lines = append(r.lines, b.String())
+}
+
+// Center pads each printed line block (height rows, as returned by Render)
+// so its widest row is centred in width columns.
+func Center(lines []string, height, width int) []string {
+	out := make([]string, len(lines))
+	for i := 0; i < len(lines); i += height {
+		block := lines[i:min(i+height, len(lines))]
+		widest := 0
+		for _, l := range block {
+			widest = max(widest, utf8.RuneCountInString(l))
+		}
+		pad := strings.Repeat(" ", max(width-widest, 0)/2)
+		for j, l := range block {
+			out[i+j] = pad + l
+		}
+	}
+	return out
 }
 
 // at returns s[i], or 0 (C's terminator) outside the slice.

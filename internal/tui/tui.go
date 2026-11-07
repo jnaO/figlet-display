@@ -15,6 +15,7 @@ import (
 
 	"github.com/jnaO/figlet-display/internal/catalog"
 	"github.com/jnaO/figlet-display/internal/display"
+	"github.com/jnaO/figlet-display/internal/figfont"
 )
 
 const (
@@ -59,7 +60,7 @@ type Model struct {
 }
 
 // New builds the model and starts parsing every font in the background.
-func New(cat *catalog.Catalog, text string) Model {
+func New(cat *catalog.Catalog, text string, center bool) Model {
 	ti := textarea.New()
 	ti.ShowLineNumbers = false
 	ti.EndOfBufferCharacter = ' '
@@ -92,6 +93,7 @@ func New(cat *catalog.Catalog, text string) Model {
 		search:  si,
 		preview: viewport.New(0, 0),
 	}
+	m.state.Center = center
 	m.items = m.state.Sidebar()
 	return m
 }
@@ -402,6 +404,9 @@ func (m Model) previewContent() (string, map[string]span) {
 			body = []string{"loading…"}
 		default:
 			body = f.Render(m.state.Text, w)
+			if m.state.Center {
+				body = figfont.Center(body, f.Height, w)
+			}
 		}
 		switch {
 		case hl && f != nil:

@@ -53,7 +53,7 @@ func testModel(t *testing.T, n int) Model {
 			t.Fatal(err)
 		}
 	}
-	m := New(catalog.Discover([]string{dir}), "ab")
+	m := New(catalog.Discover([]string{dir}), "ab", false)
 	<-m.loaded
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 60, Height: 20})
 	return next.(Model)

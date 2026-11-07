@@ -17,6 +17,7 @@ type Item struct {
 // State is the app state over a fixed, sorted list of font names.
 type State struct {
 	Text     string
+	Center   bool // centre each rendered line block in the preview width
 	query    string
 	fonts    []string
 	selected map[string]bool
