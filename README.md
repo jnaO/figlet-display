@@ -65,3 +65,7 @@ go test ./...
 ```
 
 The golden tests compare the renderer byte for byte with the real `figlet` for every installed font, and skip when `figlet` or the fonts are missing. See [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## License
+
+[MIT](LICENSE). Font files are not part of this project and keep their own licenses.
