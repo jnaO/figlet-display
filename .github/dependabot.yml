@@ -1,0 +1,23 @@
+# Go module dependencies. Add a github-actions entry once the repo has workflows.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    # A release must have been out this long before it is proposed.
+    cooldown:
+      default-days: 14
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 7
+    groups:
+      go:
+        patterns: ["*"]
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(deps)"
+    labels: [dependencies]
+    open-pull-requests-limit: 1
