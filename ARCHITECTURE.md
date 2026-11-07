@@ -31,6 +31,7 @@ internal/display/display.go
                    State: text, query, selection; Sidebar() and RenderSet(); THE render-set rule
 internal/tui/
   tui.go           Bubble Tea model: header text input, sidebar (search + list), preview viewport, footer help
+  lolcat.go        rainbow colouring of the cursor font (lolcat -S 20 -p 7 -F 0.05 equivalent) on the tint background
   styles.go        all lipgloss styles (adaptive light/dark)
 ```
 
@@ -38,6 +39,7 @@ internal/tui/
 
 - **Render set** (`display.State.RenderSet`): no query + no selection → all fonts; no query → selection (sorted); query → selection first, then fuzzy matches not already listed. The sidebar shows all fonts without a query, otherwise only matches in `sahilm/fuzzy` rank order.
 - **Font names** (`catalog.uniqueNames`): basename without extension; on a basename collision, `parentdir/basename`; on a further collision, the full path minus extension. Names come from the resolved real path, so a symlink alias collapses into its target's name.
+- **Cursor font in the preview** (`tui.Model.revealCursor`, `revealOffset`): `previewContent` records each rendered font's line span; on cursor move, query change or toggle the preview scrolls the minimum needed to show the cursor font in full (its top when taller than the view), and never when it is already fully visible or not in the render set. The cursor font is drawn with `lolcat`.
 - **Lazy loading**: the TUI calls `Catalog.Preload` at start and polls on a tick until the returned channel closes; preview entries show `loading…` or the parse error until ready. The full preview is re-rendered on every change.
 
 ## Drill-downs
