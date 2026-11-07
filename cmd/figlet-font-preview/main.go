@@ -1,4 +1,4 @@
-// Command figlet-display renders text in every installed FIGlet/TOIlet font
+// Command figlet-font-preview renders text in every installed FIGlet/TOIlet font
 // in an interactive terminal UI.
 package main
 
@@ -10,8 +10,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jnaO/figlet-display/internal/catalog"
-	"github.com/jnaO/figlet-display/internal/tui"
+	"github.com/jnaO/figlet-font-preview/internal/catalog"
+	"github.com/jnaO/figlet-font-preview/internal/tui"
 )
 
 var version = "dev"
@@ -27,13 +27,13 @@ func main() {
 	center := flag.Bool("center", false, "centre the rendered text in the preview")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: figlet-display [--center] [--font-dir DIR]... [text]\n\n")
+		fmt.Fprintf(os.Stderr, "usage: figlet-font-preview [--center] [--font-dir DIR]... [text]\n\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nDefault font roots: %s\n", strings.Join(catalog.DefaultRoots(), ", "))
 	}
 	flag.Parse()
 	if *showVersion {
-		fmt.Println("figlet-display", version)
+		fmt.Println("figlet-font-preview", version)
 		return
 	}
 

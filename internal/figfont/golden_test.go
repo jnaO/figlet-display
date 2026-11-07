@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jnaO/figlet-display/internal/catalog"
+	"github.com/jnaO/figlet-font-preview/internal/catalog"
 )
 
 const goldenSample = `Hello World 0123456789 !?.,:;-+=()[]{}<>/\|_@#$%^&*'"~ abcxyz ABCXYZ`

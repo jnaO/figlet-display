@@ -8,8 +8,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jnaO/figlet-display/internal/catalog"
-	"github.com/jnaO/figlet-display/internal/fontclass"
+	"github.com/jnaO/figlet-font-preview/internal/catalog"
+	"github.com/jnaO/figlet-font-preview/internal/fontclass"
 )
 
 func TestRevealOffset(t *testing.T) {

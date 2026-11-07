@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jnaO/figlet-display/internal/fontclass"
+	"github.com/jnaO/figlet-font-preview/internal/fontclass"
 )
 
 // profile builds a fixture profile: key groups duplicates, values per axis

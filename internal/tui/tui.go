@@ -13,9 +13,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jnaO/figlet-display/internal/catalog"
-	"github.com/jnaO/figlet-display/internal/display"
-	"github.com/jnaO/figlet-display/internal/figfont"
+	"github.com/jnaO/figlet-font-preview/internal/catalog"
+	"github.com/jnaO/figlet-font-preview/internal/display"
+	"github.com/jnaO/figlet-font-preview/internal/figfont"
 )
 
 const (
