@@ -6,6 +6,8 @@ package figfont
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -224,6 +226,42 @@ func (f *Font) decode(line []byte) []rune {
 		out = append(out, r)
 	}
 	return out
+}
+
+// GlyphKey identifies fonts that render identically: a SHA-256 over height,
+// layout, print direction and the rows of 32..126 plus the Deutsch
+// characters, with the hardblank normalised so fonts using different
+// hardblank bytes still match.
+func (f *Font) GlyphKey() [sha256.Size]byte {
+	h := sha256.New()
+	var buf [4]byte
+	put := func(v int32) {
+		binary.LittleEndian.PutUint32(buf[:], uint32(v))
+		h.Write(buf[:])
+	}
+	put(int32(f.Height))
+	put(int32(f.Layout))
+	put(int32(f.PrintDirection))
+	glyph := func(c rune) {
+		for _, row := range f.glyph(c) {
+			put(int32(len(row)))
+			for _, r := range row {
+				if r == f.Hardblank {
+					r = -1
+				}
+				put(r)
+			}
+		}
+	}
+	for c := rune(' '); c <= '~'; c++ {
+		glyph(c)
+	}
+	for _, c := range deutsch {
+		glyph(c)
+	}
+	var key [sha256.Size]byte
+	h.Sum(key[:0])
+	return key
 }
 
 // glyph returns the rows for c, falling back to the missing character.

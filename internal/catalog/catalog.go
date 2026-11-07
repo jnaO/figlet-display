@@ -45,6 +45,7 @@ const (
 type Entry struct {
 	Name string // unique display name
 	Path string // resolved real path
+	Root int    // index in Catalog.Roots of the root whose walk reached the file first
 
 	once sync.Once
 	done chan struct{}
@@ -65,6 +66,8 @@ func Discover(roots []string) *Catalog {
 	seenFile := map[string]bool{}
 	seenDir := map[string]bool{}
 	var paths []string
+	rootOf := map[string]int{}
+	root := 0
 	var walk func(dir string)
 	walk = func(dir string) {
 		real, err := filepath.EvalSymlinks(dir)
@@ -95,12 +98,14 @@ func Discover(roots []string) *Catalog {
 			}
 			seenFile[rp] = true
 			paths = append(paths, rp)
+			rootOf[rp] = root
 		}
 	}
-	for _, r := range roots {
+	for i, r := range roots {
+		root = i
 		walk(r)
 	}
-	return newCatalog(roots, paths)
+	return newCatalog(roots, paths, rootOf)
 }
 
 func isFontFile(p string) bool {
@@ -108,10 +113,10 @@ func isFontFile(p string) bool {
 	return ext == ".flf" || ext == ".tlf"
 }
 
-func newCatalog(roots, paths []string) *Catalog {
+func newCatalog(roots, paths []string, rootOf map[string]int) *Catalog {
 	c := &Catalog{Roots: roots, byName: map[string]*Entry{}}
 	for path, name := range uniqueNames(paths) {
-		e := &Entry{Name: name, Path: path, done: make(chan struct{})}
+		e := &Entry{Name: name, Path: path, Root: rootOf[path], done: make(chan struct{})}
 		c.Entries = append(c.Entries, e)
 		c.byName[name] = e
 	}
