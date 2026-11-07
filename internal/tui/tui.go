@@ -32,6 +32,9 @@ const (
 
 type tickMsg struct{}
 
+// span is a half-open range of preview lines.
+type span struct{ start, end int }
+
 // Model is the root Bubble Tea model.
 type Model struct {
 	cat     *catalog.Catalog
@@ -45,6 +48,7 @@ type Model struct {
 
 	items          []display.Item
 	cursor, offset int
+	spans          map[string]span // preview line range of each rendered font
 
 	width, height int
 	ready         bool
@@ -202,6 +206,7 @@ func (m *Model) applyQuery() {
 		m.items = m.state.Sidebar()
 		m.cursor, m.offset = 0, 0
 		m.refreshPreview(true)
+		m.revealCursor()
 	}
 }
 
@@ -218,12 +223,30 @@ func (m *Model) moveCursor(key string) {
 	}
 	m.cursor = max(0, min(m.cursor, len(m.items)-1))
 	m.clampOffset()
+	m.refreshPreview(false)
+	m.revealCursor()
+}
+
+func (m Model) cursorName() string {
+	if m.cursor < len(m.items) {
+		return m.items[m.cursor].Name
+	}
+	return ""
+}
+
+// revealCursor scrolls the preview only as far as needed to show the cursor
+// font in full; fonts outside the render set leave the scroll untouched.
+func (m *Model) revealCursor() {
+	if s, ok := m.spans[m.cursorName()]; ok {
+		m.preview.SetYOffset(revealOffset(m.preview.YOffset, m.preview.Height, s.start, s.end))
+	}
 }
 
 func (m *Model) toggleCursor() {
 	if m.cursor < len(m.items) {
 		m.state.Toggle(m.items[m.cursor].Name)
 		m.refreshPreview(true)
+		m.revealCursor()
 	}
 }
 
@@ -271,56 +294,76 @@ func (m *Model) refreshPreview(reset bool) {
 	if !m.ready {
 		return
 	}
-	m.preview.SetContent(m.previewContent())
+	content, spans := m.previewContent()
+	m.spans = spans
+	m.preview.SetContent(content)
 	if reset {
 		m.preview.GotoTop()
 	}
 }
 
-func (m Model) previewContent() string {
+// previewContent renders the render set and records each font's line span.
+// The cursor font is drawn in rainbow colours on a tinted background.
+func (m Model) previewContent() (string, map[string]span) {
 	if len(m.cat.Entries) == 0 {
 		return styles.dim.Render(fmt.Sprintf(
 			"No fonts found.\n\nSearched:\n  %s\n\nAdd more with --font-dir <dir>.",
-			strings.Join(m.cat.Roots, "\n  ")))
+			strings.Join(m.cat.Roots, "\n  "))), nil
 	}
 	set := m.state.RenderSet()
 	if len(set) == 0 {
-		return styles.dim.Render("No fonts match the search.")
+		return styles.dim.Render("No fonts match the search."), nil
 	}
 	w := m.previewWidth()
-	var b strings.Builder
+	cursor := m.cursorName()
+	spans := make(map[string]span, len(set))
+	var lines []string
 	for _, name := range set {
-		b.WriteString(m.fontHeader(name, w))
-		b.WriteString("\n")
+		hl := name == cursor
+		start := len(lines)
+		lines = append(lines, m.fontHeader(name, w, hl))
 		e, _ := m.cat.Get(name)
 		f, err := e.Font()
+		var body []string
 		switch {
 		case err != nil:
-			b.WriteString(styles.err.Render(truncate(err.Error(), w)))
-			b.WriteString("\n")
+			body = []string{truncate(err.Error(), w)}
 		case f == nil:
-			b.WriteString(styles.dim.Render("loading…"))
-			b.WriteString("\n")
+			body = []string{"loading…"}
 		default:
-			for _, line := range f.Render(m.state.Text, w) {
-				b.WriteString(line)
-				b.WriteString("\n")
-			}
+			body = f.Render(m.state.Text, w)
 		}
-		b.WriteString("\n")
+		switch {
+		case hl && f != nil:
+			body = lolcat(body, w)
+		case hl:
+			for i, l := range body {
+				body[i] = tintLine(l, w)
+			}
+		case err != nil:
+			body = []string{styles.err.Render(body[0])}
+		case f == nil:
+			body = []string{styles.dim.Render(body[0])}
+		}
+		lines = append(lines, body...)
+		spans[name] = span{start, len(lines)}
+		lines = append(lines, "")
 	}
-	return strings.TrimRight(b.String(), "\n")
+	return strings.Join(lines[:len(lines)-1], "\n"), spans
 }
 
-func (m Model) fontHeader(name string, w int) string {
+func (m Model) fontHeader(name string, w int, hl bool) string {
 	label := " " + name + " "
-	style := styles.header
+	style, rule := styles.header, styles.rule
 	if m.state.IsSelected(name) {
 		label = " ● " + name + " "
 		style = styles.headerSelected
 	}
-	rule := strings.Repeat("─", max(w-lipgloss.Width(label)-2, 0))
-	return style.Render("──"+label) + styles.rule.Render(rule)
+	if hl {
+		style, rule = style.Inherit(styles.tint), rule.Inherit(styles.tint)
+	}
+	n := max(w-lipgloss.Width(label)-2, 0)
+	return style.Render("──"+label) + rule.Render(strings.Repeat("─", n))
 }
 
 func (m Model) View() string {
@@ -418,4 +461,17 @@ func truncate(s string, w int) string {
 		return string(r[:max(w, 0)])
 	}
 	return string(r[:w-1]) + "…"
+}
+
+// revealOffset returns the smallest change to the scroll offset y (viewport
+// height h) that brings lines [start, end) fully into view, or the block's
+// first line when it is taller than the viewport.
+func revealOffset(y, h, start, end int) int {
+	switch {
+	case start < y:
+		return start
+	case end > y+h:
+		return min(start, end-h)
+	}
+	return y
 }

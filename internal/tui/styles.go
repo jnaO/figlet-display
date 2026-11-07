@@ -6,7 +6,7 @@ var accent = lipgloss.AdaptiveColor{Light: "#8839EF", Dark: "#CBA6F7"}
 
 var styles = struct {
 	label, dim, err, rule, divider, header, headerSelected,
-	selected, match, cursor, cursorInactive lipgloss.Style
+	selected, match, cursor, cursorInactive, tint lipgloss.Style
 }{
 	label:          lipgloss.NewStyle().Foreground(accent).Bold(true),
 	dim:            lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "243"}),
@@ -19,4 +19,5 @@ var styles = struct {
 	match:          lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#D20F39", Dark: "#F9E2AF"}).Bold(true),
 	cursor:         lipgloss.NewStyle().Foreground(accent).Bold(true),
 	cursorInactive: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "240"}),
+	tint:           lipgloss.NewStyle().Background(lipgloss.AdaptiveColor{Light: "#EEF0F6", Dark: "#323846"}),
 }
