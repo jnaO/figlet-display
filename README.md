@@ -26,6 +26,7 @@ figlet-display                       # renders "Hello"
 figlet-display Hello world           # initial text
 figlet-display $'two\nlines'          # multiline initial text
 figlet-display --font-dir ~/fonts    # also search ~/fonts (repeatable)
+figlet-display --center Hello        # centre the text in the preview
 ```
 
 ### Which fonts are shown

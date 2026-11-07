@@ -8,7 +8,8 @@ Planning lives in GitHub issues on `jnaO/figlet-display`: Stories carry the plan
 
 ```
 cmd/figlet-display → tui → display
-                       └──→ catalog → figfont
+                       ├──→ catalog → figfont
+                       └──→ figfont (Center)
 ```
 
 Nothing below `internal/tui` imports Bubble Tea, bubbles or lipgloss (check: `go list -deps ./internal/figfont ./internal/catalog ./internal/display | grep charmbracelet` prints nothing). A second front-end (e.g. a desktop GUI) drives `display.State` and `catalog.Catalog` directly.
@@ -16,7 +17,7 @@ Nothing below `internal/tui` imports Bubble Tea, bubbles or lipgloss (check: `go
 ## Map
 
 ```
-cmd/figlet-display/main.go   flags (--font-dir repeatable, --version), positional text (default "Hello"); roots = catalog.DefaultRoots() + --font-dir
+cmd/figlet-display/main.go   flags (--font-dir repeatable, --center, --version), positional text (default "Hello"); roots = catalog.DefaultRoots() + --font-dir
 internal/figfont/
   font.go          Parse/ParseFile: flf2a + tlf2a headers, zip-archived fonts, glyph table; THE font parser
   reader.go        byte-level line reader reproducing figlet's myfgets, header sscanf subset, C strtol (code tags)
@@ -28,7 +29,7 @@ internal/catalog/catalog.go
                    Discover(roots): recursive walk following symlinks, *.flf/*.tlf only, dedupe by real path,
                    unique names; Entry.Load (once, concurrent-safe), Entry.State/Font (non-blocking), Preload(workers)
 internal/display/display.go
-                   State: text, query, selection; Sidebar() and RenderSet(); THE render-set rule
+                   State: text, Center, query, selection; Sidebar() and RenderSet(); THE render-set rule
 internal/tui/
   tui.go           Bubble Tea model: multiline text area (grows to maxTextLines rows), sidebar (search + list),
                    preview viewport, footer help
