@@ -1,4 +1,4 @@
-module github.com/jnaO/figlet-display
+module github.com/jnaO/figlet-font-preview
 
 go 1.26.1
 

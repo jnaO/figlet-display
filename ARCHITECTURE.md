@@ -1,13 +1,13 @@
 # Architecture
 
-Planning lives in GitHub issues on `jnaO/figlet-display`: Stories carry the plan, Task sub-issues track the steps.
+Planning lives in GitHub issues on `jnaO/figlet-font-preview`: Stories carry the plan, Task sub-issues track the steps.
 
-`figlet-display` is a Go terminal app that renders a sample string in every installed FIGlet/TOIlet font, with a fuzzy-searchable, multi-select font sidebar. It is standalone: it reads font files from disk and never runs the `figlet` binary, which is only the test oracle.
+`figlet-font-preview` is a Go terminal app that renders a sample string in every installed FIGlet/TOIlet font, with a fuzzy-searchable, multi-select font sidebar. It is standalone: it reads font files from disk and never runs the `figlet` binary, which is only the test oracle.
 
 ## Dependency direction
 
 ```
-cmd/figlet-display → tui → display → fontclass → catalog → figfont
+cmd/figlet-font-preview → tui → display → fontclass → catalog → figfont
                        ├──→ catalog
                        └──→ figfont (Center)
 ```
@@ -17,7 +17,7 @@ Nothing below `internal/tui` imports Bubble Tea, bubbles or lipgloss (check: `go
 ## Map
 
 ```
-cmd/figlet-display/main.go   flags (--font-dir repeatable, --center, --version), positional text (default "Hello"); roots = catalog.DefaultRoots() + --font-dir
+cmd/figlet-font-preview/main.go   flags (--font-dir repeatable, --center, --version), positional text (default "Hello"); roots = catalog.DefaultRoots() + --font-dir
 internal/figfont/
   font.go          Parse/ParseFile: flf2a + tlf2a headers, zip-archived fonts, glyph table; THE font parser
   reader.go        byte-level line reader reproducing figlet's myfgets, header sscanf subset, C strtol (code tags)

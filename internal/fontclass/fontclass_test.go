@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jnaO/figlet-display/internal/catalog"
-	"github.com/jnaO/figlet-display/internal/figfont"
+	"github.com/jnaO/figlet-font-preview/internal/catalog"
+	"github.com/jnaO/figlet-font-preview/internal/figfont"
 )
 
 // makeFont builds a FIGfont whose every printable glyph is rows(c).

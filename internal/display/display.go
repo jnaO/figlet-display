@@ -8,7 +8,7 @@ import (
 
 	"github.com/sahilm/fuzzy"
 
-	"github.com/jnaO/figlet-display/internal/fontclass"
+	"github.com/jnaO/figlet-font-preview/internal/fontclass"
 )
 
 // NoGroup is GroupBy's value for an ungrouped sidebar.

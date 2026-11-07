@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jnaO/figlet-display/internal/figfont"
+	"github.com/jnaO/figlet-font-preview/internal/figfont"
 )
 
 // Axis is a facet axis.

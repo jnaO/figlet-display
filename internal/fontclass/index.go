@@ -4,7 +4,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/jnaO/figlet-display/internal/catalog"
+	"github.com/jnaO/figlet-font-preview/internal/catalog"
 )
 
 // Input is one font for New: its catalog name, root index and profile.

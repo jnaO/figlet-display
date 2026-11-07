@@ -1,4 +1,4 @@
-# figlet-display
+# figlet-font-preview
 
 An interactive figlet font renderer: type a short text and see it rendered in every FIGlet and TOIlet font installed on your computer, with a fuzzy-searchable, multi-select font sidebar for comparing fonts side by side.
 
@@ -7,7 +7,7 @@ It renders fonts itself, so the `figlet` program does not need to be installed. 
 ## Install
 
 ```sh
-go install github.com/jnaO/figlet-display/cmd/figlet-display@latest
+go install github.com/jnaO/figlet-font-preview/cmd/figlet-font-preview@latest
 ```
 
 Fonts are read from these directories when present:
@@ -22,11 +22,11 @@ On macOS, `brew install figlet toilet` provides about 440 fonts. Fonts in differ
 ## Usage
 
 ```sh
-figlet-display                       # renders "Hello"
-figlet-display Hello world           # initial text
-figlet-display $'two\nlines'          # multiline initial text
-figlet-display --font-dir ~/fonts    # also search ~/fonts (repeatable)
-figlet-display --center Hello        # centre the text in the preview
+figlet-font-preview                       # renders "Hello"
+figlet-font-preview Hello world           # initial text
+figlet-font-preview $'two\nlines'         # multiline initial text
+figlet-font-preview --font-dir ~/fonts    # also search ~/fonts (repeatable)
+figlet-font-preview --center Hello        # centre the text in the preview
 ```
 
 ### Which fonts are shown
