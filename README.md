@@ -56,7 +56,29 @@ The selection is kept while you search and when you clear the search. The previe
 | list | `x` | clear the selection |
 | list | `/` | jump to search |
 | list | `esc` | clear the search |
+| anywhere | `ctrl+o` | open or close the options pane |
 | list | `q` | quit |
+| options | `↑` / `↓`, `j` / `k` | move |
+| options | `space` / `enter` | toggle the row |
+| options | `←` / `→` | change Group by |
+| options | `tab` | back to the text, leaving the pane open |
+| options | `esc` / `ctrl+o` | close the pane |
+
+### Options panel
+
+Press `ctrl+o` anywhere to slide the options pane in from the right. It has its own column, and changes apply immediately. `tab` moves between the text, search, list and pane.
+
+- **Center text**: centres the text in the preview. `--center` sets the starting value.
+- **Collapse duplicates**: shows fonts that are identical (the same font in two folders) only once, with `+N` showing how many copies are hidden.
+- **Group by**: groups the font list by Stroke, Weight, Size or Slant. Press space on a group header to select or deselect the whole group.
+- **Similar to**: lists the font under the list cursor, followed by its closest look-alikes, most similar first.
+- **Filters**: every value of the four measured axes, with font counts. Within an axis, any checked value matches; across axes, all must match.
+  - **Stroke**: what the letters are drawn with: line art (`/ \ | _`), solid fill (`# * @` or letters), block characters (`█`), box-drawing characters (`═ ║`), or other Unicode.
+  - **Weight**: how much of the letter area is inked.
+  - **Size**: how many rows tall the letters are.
+  - **Slant**: upright or slanted.
+
+Selected fonts always stay visible, whatever is filtered or collapsed. Categories are measured from how each font renders, not from its name.
 
 ## Development
 
