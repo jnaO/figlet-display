@@ -24,6 +24,7 @@ On macOS, `brew install figlet toilet` provides about 440 fonts. Fonts in differ
 ```sh
 figlet-display                       # renders "Hello"
 figlet-display Hello world           # initial text
+figlet-display $'two\nlines'          # multiline initial text
 figlet-display --font-dir ~/fonts    # also search ~/fonts (repeatable)
 ```
 
@@ -35,12 +36,13 @@ figlet-display --font-dir ~/fonts    # also search ~/fonts (repeatable)
 | empty | some | the selected fonts |
 | active | any | the selected fonts, then every fuzzy match |
 
-The selection is kept while you search and when you clear the search.
+The selection is kept while you search and when you clear the search. The preview follows the highlighted font in the list, scrolling only when that font is not fully visible, and keeps it on the same row when you edit the text.
 
 ### Keys
 
 | Where | Key | Action |
 |---|---|---|
+| text | type, `enter` | edit the text; `enter` starts a new line (the box grows to 5 rows, then scrolls) |
 | anywhere | `tab` / `shift+tab` | cycle focus: text → search → list |
 | anywhere | `pgup` / `pgdn`, `ctrl+u` / `ctrl+d`, mouse wheel | scroll the preview |
 | anywhere | `ctrl+c` | quit |

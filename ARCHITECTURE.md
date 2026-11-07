@@ -30,7 +30,8 @@ internal/catalog/catalog.go
 internal/display/display.go
                    State: text, query, selection; Sidebar() and RenderSet(); THE render-set rule
 internal/tui/
-  tui.go           Bubble Tea model: header text input, sidebar (search + list), preview viewport, footer help
+  tui.go           Bubble Tea model: multiline text area (grows to maxTextLines rows), sidebar (search + list),
+                   preview viewport, footer help
   lolcat.go        rainbow colouring of the cursor font (lolcat -S 20 -p 7 -F 0.05 equivalent) on the tint background
   styles.go        all lipgloss styles (adaptive light/dark)
 ```
@@ -40,6 +41,8 @@ internal/tui/
 - **Render set** (`display.State.RenderSet`): no query + no selection → all fonts; no query → selection (sorted); query → selection first, then fuzzy matches not already listed. The sidebar shows all fonts without a query, otherwise only matches in `sahilm/fuzzy` rank order.
 - **Font names** (`catalog.uniqueNames`): basename without extension; on a basename collision, `parentdir/basename`; on a further collision, the full path minus extension. Names come from the resolved real path, so a symlink alias collapses into its target's name.
 - **Cursor font in the preview** (`tui.Model.revealCursor`, `revealOffset`): `previewContent` records each rendered font's line span; on cursor move, query change or toggle the preview scrolls the minimum needed to show the cursor font in full (its top when taller than the view), and never when it is already fully visible or not in the render set. The cursor font is drawn with `lolcat`.
+- **Preview anchor** (`tui.Model.refreshPreview`, `anchorFont`): every re-render that is not a reset keeps the anchor font (the cursor font if rendered, else the font at the top of the view) on the same screen row, so text edits, resizes and fonts finishing loading do not shift it.
+- **Text area sizing** (`tui.Model.handleKey`, `resetTextScroll`): the bubbles textarea scrolls its own view during `Update` from its current height, so it is updated at `maxTextLines` and then fitted; after lines are deleted its stale scroll offset is reset via `SetValue` with the cursor restored. Tests call `View()` after each update because bubbles components only learn their content size when rendered.
 - **Lazy loading**: the TUI calls `Catalog.Preload` at start and polls on a tick until the returned channel closes; preview entries show `loading…` or the parse error until ready. The full preview is re-rendered on every change.
 
 ## Drill-downs
