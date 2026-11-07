@@ -47,7 +47,8 @@ func TestRender(t *testing.T) {
 		{"testdata/tiny-zipped.flf", "ab", 0, []string{"a|b|", "a|b|"}},
 		{"testdata/tiny-rtl.flf", "ab", 0, []string{"b|a|", "b|a|"}},
 		{"testdata/tiny.tlf", "a☺", 0, []string{"a█:)", "a█()"}},
-		{"testdata/tiny.flf", "aéb", 0, []string{"a|b|", "a|b|"}}, // missing char renders empty
+		{"testdata/tiny-utf8.flf", "ab cd", 7, []string{"a█b█", "a█b█", "c█d█", "c█d█"}}, // UTF-8 flf: █ is one column
+		{"testdata/tiny.flf", "aéb", 0, []string{"a|b|", "a|b|"}},                        // missing char renders empty
 		{"testdata/tiny.flf", "ab cd", 5, []string{"a|b|", "a|b|", "c|d|", "c|d|"}},
 		{"testdata/tiny.flf", "abcd", 5, []string{"a|b|", "a|b|", "c|d|", "c|d|"}},
 		{"testdata/tiny.flf", "", 0, nil},
@@ -57,6 +58,14 @@ func TestRender(t *testing.T) {
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s %q w=%d: got %q, want %q", c.path, c.text, c.width, got, c.want)
 		}
+	}
+}
+
+func TestCenter(t *testing.T) {
+	lines := []string{"ab", "abcd", "x", "x"}
+	want := []string{"   ab", "   abcd", "    x", "    x"}
+	if got := Center(lines, 2, 10); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }
 

@@ -204,9 +204,10 @@ func (f *Font) readGlyph(r *lineReader, maxLen int) [][]rune {
 	return rows
 }
 
-// decode reads TOIlet rows as UTF-8 and FIGlet rows as one rune per byte.
+// decode reads TOIlet rows as UTF-8. FIGlet rows are UTF-8 when valid,
+// otherwise one rune per byte (Latin-1); figlet itself treats them as bytes.
 func (f *Font) decode(line []byte) []rune {
-	if !f.Toilet {
+	if !f.Toilet && !utf8.Valid(line) {
 		out := make([]rune, len(line))
 		for i, b := range line {
 			out[i] = rune(b)
