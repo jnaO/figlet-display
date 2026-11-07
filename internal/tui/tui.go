@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,6 +19,8 @@ import (
 
 const (
 	sidebarWidth = 30 // content columns, excluding the divider
+	maxTextLines = 5  // the text area grows up to this many rows, then scrolls
+	textPrompt   = "Text › "
 	tickEvery    = 100 * time.Millisecond
 )
 
@@ -42,9 +45,10 @@ type Model struct {
 	loaded  <-chan struct{}
 	loading bool
 
-	text, search textinput.Model
-	preview      viewport.Model
-	focus        focus
+	text    textarea.Model
+	search  textinput.Model
+	preview viewport.Model
+	focus   focus
 
 	items          []display.Item
 	cursor, offset int
@@ -56,9 +60,21 @@ type Model struct {
 
 // New builds the model and starts parsing every font in the background.
 func New(cat *catalog.Catalog, text string) Model {
-	ti := textinput.New()
-	ti.Prompt = "Text › "
-	ti.PromptStyle = styles.label
+	ti := textarea.New()
+	ti.ShowLineNumbers = false
+	ti.EndOfBufferCharacter = ' '
+	ti.CharLimit = 0
+	ti.SetPromptFunc(lipgloss.Width(textPrompt), func(line int) string {
+		if line == 0 {
+			return textPrompt
+		}
+		return strings.Repeat(" ", lipgloss.Width(textPrompt)-2) + "┆ "
+	})
+	for _, st := range []*textarea.Style{&ti.FocusedStyle, &ti.BlurredStyle} {
+		st.CursorLine = lipgloss.NewStyle()
+		st.Prompt = styles.label
+		st.Text = lipgloss.NewStyle()
+	}
 	ti.SetValue(text)
 	ti.Focus()
 
@@ -81,7 +97,7 @@ func New(cat *catalog.Catalog, text string) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(textinput.Blink, tick())
+	return tea.Batch(textarea.Blink, tick())
 }
 
 func tick() tea.Cmd {
@@ -143,7 +159,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.focus {
 	case focusText:
 		var cmd tea.Cmd
+		// The textarea scrolls its own view during Update based on its
+		// current height, so it updates at full height and is then fitted.
+		prevH, prevLines := m.text.Height(), m.text.LineCount()
+		m.text.SetHeight(maxTextLines)
 		m.text, cmd = m.text.Update(msg)
+		if n := m.text.LineCount(); n < prevLines && n <= maxTextLines {
+			m.resetTextScroll()
+		}
+		if m.textHeight() != prevH {
+			m.layout()
+		} else {
+			m.text.SetHeight(prevH)
+		}
 		if v := m.text.Value(); v != m.state.Text {
 			m.state.Text = v
 			m.refreshPreview(false)
@@ -263,20 +291,38 @@ func (m *Model) scrollPreview(key string) {
 	}
 }
 
-// Layout: header row, body (sidebar | preview), footer row.
+// Layout: text area (1..maxTextLines rows), body (sidebar | preview), footer.
 func (m *Model) layout() {
-	bodyH := max(m.height-2, 1)
-	m.text.Width = max(m.width-lipgloss.Width(m.text.Prompt)-1, 1)
+	m.text.SetWidth(max(m.width-1, 1))
+	m.text.SetHeight(m.textHeight())
 	m.search.Width = sidebarWidth - lipgloss.Width(m.search.Prompt) - 1
 	m.preview.Width = m.previewWidth()
-	m.preview.Height = bodyH
+	m.preview.Height = m.bodyHeight()
 	m.clampOffset()
 }
+
+// resetTextScroll scrolls the textarea back to its first line, keeping the
+// cursor: textarea keeps a stale scroll offset when lines are deleted, and
+// SetValue is the only way to reset it.
+func (m *Model) resetTextScroll() {
+	row := m.text.Line()
+	info := m.text.LineInfo()
+	col := info.StartColumn + info.ColumnOffset
+	m.text.SetValue(m.text.Value())
+	for m.text.Line() > row {
+		m.text.CursorUp()
+	}
+	m.text.SetCursor(col)
+}
+
+func (m Model) textHeight() int { return max(1, min(m.text.LineCount(), maxTextLines)) }
+
+func (m Model) bodyHeight() int { return max(m.height-m.textHeight()-1, 1) }
 
 func (m Model) previewWidth() int { return max(m.width-sidebarWidth-3, 1) }
 
 // listHeight is the number of font rows the sidebar shows.
-func (m Model) listHeight() int { return max(m.height-2-3, 1) }
+func (m Model) listHeight() int { return max(m.bodyHeight()-3, 1) }
 
 func (m *Model) clampOffset() {
 	h := m.listHeight()
@@ -289,17 +335,41 @@ func (m *Model) clampOffset() {
 	m.offset = max(0, min(m.offset, max(len(m.items)-h, 0)))
 }
 
-// refreshPreview re-renders the preview; reset scrolls it to the top.
+// refreshPreview re-renders the preview. reset scrolls it to the top;
+// otherwise the anchor font keeps its screen row while the fonts above it
+// change height.
 func (m *Model) refreshPreview(reset bool) {
 	if !m.ready {
 		return
 	}
+	anchor, hasAnchor := m.anchorFont()
+	row := m.spans[anchor].start - m.preview.YOffset
 	content, spans := m.previewContent()
 	m.spans = spans
 	m.preview.SetContent(content)
-	if reset {
+	switch {
+	case reset:
 		m.preview.GotoTop()
+	case hasAnchor:
+		if s, ok := m.spans[anchor]; ok {
+			m.preview.SetYOffset(s.start - row)
+		}
 	}
+}
+
+// anchorFont is the cursor font when it is rendered, else the font at the
+// top of the preview.
+func (m Model) anchorFont() (string, bool) {
+	if _, ok := m.spans[m.cursorName()]; ok {
+		return m.cursorName(), true
+	}
+	y := m.preview.YOffset
+	for name, s := range m.spans {
+		if s.start <= y && y <= s.end {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 // previewContent renders the render set and records each font's line span.
@@ -373,7 +443,7 @@ func (m Model) View() string {
 	header := m.text.View()
 	body := lipgloss.JoinHorizontal(lipgloss.Top,
 		m.sidebarView(),
-		styles.divider.Render(strings.Repeat("│\n", max(m.height-3, 0))+"│"),
+		styles.divider.Render(strings.Repeat("│\n", m.bodyHeight()-1)+"│"),
 		lipgloss.NewStyle().PaddingLeft(1).Render(m.preview.View()),
 	)
 	return lipgloss.JoinVertical(lipgloss.Left, header, body, m.footerView())
@@ -389,8 +459,8 @@ func (m Model) sidebarView() string {
 	for i := m.offset; i < end; i++ {
 		lines = append(lines, m.itemView(i))
 	}
-	return lipgloss.NewStyle().Width(sidebarWidth).Height(max(m.height-2, 1)).
-		MaxHeight(max(m.height-2, 1)).Render(strings.Join(lines, "\n"))
+	return lipgloss.NewStyle().Width(sidebarWidth).Height(m.bodyHeight()).
+		MaxHeight(m.bodyHeight()).Render(strings.Join(lines, "\n"))
 }
 
 func (m Model) countLine() string {
@@ -423,7 +493,7 @@ func (m Model) footerView() string {
 	var keys string
 	switch m.focus {
 	case focusText:
-		keys = "type text · tab: search · pgup/pgdn: scroll · ctrl+c: quit"
+		keys = "type text · enter: new line · tab: search · pgup/pgdn: scroll · ctrl+c: quit"
 	case focusSearch:
 		keys = "type to filter · ↑/↓: move · enter: select · esc: clear · tab: list"
 	case focusList:

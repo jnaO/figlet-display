@@ -1,6 +1,15 @@
 package tui
 
-import "testing"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/jnaO/figlet-display/internal/catalog"
+)
 
 func TestRevealOffset(t *testing.T) {
 	const h = 10
@@ -29,5 +38,65 @@ func TestLolcatPadsAndColours(t *testing.T) {
 	}
 	if rainbow(lolSeed) == rainbow(lolSeed+1) {
 		t.Fatal("adjacent rows should differ in colour")
+	}
+}
+
+func testModel(t *testing.T, n int) Model {
+	t.Helper()
+	data, err := os.ReadFile("../figfont/testdata/tiny.flf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	for i := range n {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("f%02d.flf", i)), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m := New(catalog.Discover([]string{dir}), "ab")
+	<-m.loaded
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 60, Height: 20})
+	return next.(Model)
+}
+
+func key(m Model, keys ...string) Model {
+	for _, k := range keys {
+		var msg tea.KeyMsg
+		switch k {
+		case "down":
+			msg = tea.KeyMsg{Type: tea.KeyDown}
+		case "enter":
+			msg = tea.KeyMsg{Type: tea.KeyEnter}
+		case "tab":
+			msg = tea.KeyMsg{Type: tea.KeyTab}
+		default:
+			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
+		}
+		next, _ := m.Update(msg)
+		m = next.(Model)
+		m.View() // components update scroll state from their last render
+	}
+	return m
+}
+
+func screenRow(m Model, name string) int { return m.spans[name].start - m.preview.YOffset }
+
+func TestCursorFontKeepsRowWhenTextChanges(t *testing.T) {
+	m := testModel(t, 30)
+	m = key(m, "tab", "tab")
+	for range 12 {
+		m = key(m, "down")
+	}
+	name := m.cursorName()
+	before := screenRow(m, name)
+	if m.preview.YOffset == 0 {
+		t.Fatal("expected the preview to have scrolled")
+	}
+	m = key(m, "tab", "c", "d", "enter", "e", "f") // list → text; add a second line
+	if got := screenRow(m, name); got != before {
+		t.Fatalf("cursor font moved from row %d to %d", before, got)
+	}
+	if m.text.Height() != 2 {
+		t.Fatalf("text area height %d, want 2", m.text.Height())
 	}
 }
