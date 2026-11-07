@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jnaO/figlet-display/internal/catalog"
+	"github.com/jnaO/figlet-display/internal/fontclass"
 )
 
 func TestRevealOffset(t *testing.T) {
@@ -69,6 +70,14 @@ func key(m Model, keys ...string) Model {
 			msg = tea.KeyMsg{Type: tea.KeyEnter}
 		case "tab":
 			msg = tea.KeyMsg{Type: tea.KeyTab}
+		case "esc":
+			msg = tea.KeyMsg{Type: tea.KeyEsc}
+		case "space":
+			msg = tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")}
+		case "right":
+			msg = tea.KeyMsg{Type: tea.KeyRight}
+		case "ctrl+o":
+			msg = tea.KeyMsg{Type: tea.KeyCtrlO}
 		default:
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 		}
@@ -98,5 +107,96 @@ func TestCursorFontKeepsRowWhenTextChanges(t *testing.T) {
 	}
 	if m.text.Height() != 2 {
 		t.Fatalf("text area height %d, want 2", m.text.Height())
+	}
+}
+
+func withIndex(m Model) Model {
+	next, _ := m.Update(indexMsg{fontclass.Build(m.cat)})
+	return next.(Model)
+}
+
+func settle(m Model) Model {
+	for range 10 {
+		next, _ := m.Update(slideMsg{})
+		m = next.(Model)
+	}
+	return m
+}
+
+func TestOptionsPaneFromAnyFocus(t *testing.T) {
+	next, _ := testModel(t, 3).Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	m := next.(Model)
+	full := m.previewWidth()
+	m = settle(key(m, "ctrl+o")) // from the text area
+	if !m.panelOpen || m.focus != focusOptions || m.panelW != optionsWidth {
+		t.Fatalf("open=%v focus=%v width=%d", m.panelOpen, m.focus, m.panelW)
+	}
+	if m.previewWidth() != full-optionsWidth-1 {
+		t.Fatalf("preview width %d, want %d", m.previewWidth(), full-optionsWidth-1)
+	}
+	m = settle(key(m, "ctrl+o"))
+	if m.panelOpen || m.focus != focusText || m.panelW != 0 {
+		t.Fatalf("after close: open=%v focus=%v width=%d", m.panelOpen, m.focus, m.panelW)
+	}
+	m = settle(key(m, "tab", "ctrl+o", "esc")) // esc closes too, back to search
+	if m.panelOpen || m.focus != focusSearch {
+		t.Fatalf("esc: open=%v focus=%v", m.panelOpen, m.focus)
+	}
+	m = key(m, "ctrl+o", "tab") // tab leaves the pane open
+	if !m.panelOpen || m.focus != focusText {
+		t.Fatalf("tab: open=%v focus=%v", m.panelOpen, m.focus)
+	}
+}
+
+func TestOptionsCenterToggle(t *testing.T) {
+	m := key(testModel(t, 3), "ctrl+o", "space") // first row is Center
+	if !m.state.Center {
+		t.Fatal("Center should be on")
+	}
+}
+
+func TestOptionsInertBeforeIndex(t *testing.T) {
+	m := key(testModel(t, 3), "ctrl+o")
+	for range 4 { // past Collapse, Group by and Similar to the first facet row
+		m = key(m, "down")
+	}
+	m = key(m, "space")
+	if m.state.HasFilters() || m.state.Collapse {
+		t.Fatal("options must do nothing before the index arrives")
+	}
+}
+
+func TestOptionsSimilarAnchorsCursorFont(t *testing.T) {
+	m := withIndex(testModel(t, 5))
+	m = key(m, "tab", "tab", "down", "down") // cursor on f02
+	m = key(m, "ctrl+o", "down", "down", "down", "space")
+	if m.state.Similar() != "f02" {
+		t.Fatalf("similar = %q, want f02", m.state.Similar())
+	}
+	if m.items[0].Name != "f02" {
+		t.Fatalf("anchor should lead the sidebar, got %q", m.items[0].Name)
+	}
+	if m = key(m, "space"); m.state.Similar() != "" {
+		t.Fatal("toggling again should clear the anchor")
+	}
+}
+
+func TestGroupedSidebarHeaders(t *testing.T) {
+	m := withIndex(testModel(t, 4))
+	m = key(m, "tab", "tab", "ctrl+o", "down", "down", "right", "esc") // Group by → Stroke
+	if m.state.GroupBy != fontclass.Stroke || !m.items[0].IsHeader() {
+		t.Fatalf("expected a Stroke header first, got %+v", m.items[0])
+	}
+	m.cursor = 0
+	y := m.preview.YOffset
+	m = key(m, "space")
+	if m.state.SelectedCount() != 4 {
+		t.Fatalf("header should select its group, selected %d", m.state.SelectedCount())
+	}
+	if m.preview.YOffset != y || m.cursorName() != "" {
+		t.Fatal("a header has no font and must not scroll the preview")
+	}
+	if m = key(m, "space"); m.state.SelectedCount() != 0 {
+		t.Fatal("header should deselect a fully selected group")
 	}
 }

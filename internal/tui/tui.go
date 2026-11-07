@@ -31,7 +31,7 @@ const (
 	focusText focus = iota
 	focusSearch
 	focusList
-	focusCount
+	focusOptions // only while the options pane is open
 )
 
 type tickMsg struct{}
@@ -54,6 +54,11 @@ type Model struct {
 	items          []display.Item
 	cursor, offset int
 	spans          map[string]span // preview line range of each rendered font
+
+	panelOpen            bool  // the options pane is open (or sliding in)
+	panelW               int   // the pane's current width while sliding
+	prevFocus            focus // focus to return to when the pane closes
+	optCursor, optOffset int
 
 	width, height int
 	ready         bool
@@ -124,6 +129,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.loading {
 			return m, tick()
 		}
+		return m, buildIndex(m.cat)
+
+	case slideMsg:
+		return m, m.stepSlide()
+
+	case indexMsg:
+		m.state.SetIndex(msg.index)
+		m.itemsChanged()
 		return m, nil
 
 	case tea.MouseMsg:
@@ -149,10 +162,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
 		return m, tea.Quit
+	case "ctrl+o":
+		return m, m.toggleOptions()
 	case "tab":
-		return m, m.setFocus((m.focus + 1) % focusCount)
+		return m, m.setFocus(m.nextFocus(1))
 	case "shift+tab":
-		return m, m.setFocus((m.focus + focusCount - 1) % focusCount)
+		return m, m.setFocus(m.nextFocus(-1))
 	case "pgup", "pgdown", "ctrl+u", "ctrl+d":
 		m.scrollPreview(msg.String())
 		return m, nil
@@ -196,6 +211,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.applyQuery()
 		return m, cmd
 
+	case focusOptions:
+		return m.handlePanelKey(msg.String())
+
 	case focusList:
 		switch msg.String() {
 		case "q":
@@ -215,6 +233,15 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// nextFocus cycles text → search → list (→ options while open).
+func (m Model) nextFocus(d int) focus {
+	n := int(focusList) + 1
+	if m.panelOpen {
+		n++
+	}
+	return focus((int(m.focus) + d + n) % n)
 }
 
 func (m *Model) setFocus(f focus) tea.Cmd {
@@ -273,11 +300,16 @@ func (m *Model) revealCursor() {
 }
 
 func (m *Model) toggleCursor() {
-	if m.cursor < len(m.items) {
-		m.state.Toggle(m.items[m.cursor].Name)
-		m.refreshPreview(true)
-		m.revealCursor()
+	if m.cursor >= len(m.items) {
+		return
 	}
+	if it := m.items[m.cursor]; it.IsHeader() {
+		m.state.ToggleGroup(it.Header)
+	} else {
+		m.state.Toggle(it.Name)
+	}
+	m.refreshPreview(true)
+	m.revealCursor()
 }
 
 func (m *Model) scrollPreview(key string) {
@@ -321,7 +353,13 @@ func (m Model) textHeight() int { return max(1, min(m.text.LineCount(), maxTextL
 
 func (m Model) bodyHeight() int { return max(m.height-m.textHeight()-1, 1) }
 
-func (m Model) previewWidth() int { return max(m.width-sidebarWidth-3, 1) }
+func (m Model) previewWidth() int {
+	w := m.width - sidebarWidth - 3
+	if m.panelW > 0 {
+		w -= m.panelW + 1 // pane plus its divider
+	}
+	return max(w, 1)
+}
 
 // listHeight is the number of font rows the sidebar shows.
 func (m Model) listHeight() int { return max(m.bodyHeight()-3, 1) }
@@ -446,11 +484,16 @@ func (m Model) View() string {
 		return ""
 	}
 	header := m.text.View()
-	body := lipgloss.JoinHorizontal(lipgloss.Top,
+	divider := styles.divider.Render(strings.Repeat("│\n", m.bodyHeight()-1) + "│")
+	cols := []string{
 		m.sidebarView(),
-		styles.divider.Render(strings.Repeat("│\n", m.bodyHeight()-1)+"│"),
-		lipgloss.NewStyle().PaddingLeft(1).Render(m.preview.View()),
-	)
+		divider,
+		lipgloss.NewStyle().PaddingLeft(1).Width(m.previewWidth() + 1).Render(m.preview.View()),
+	}
+	if m.panelW > 0 {
+		cols = append(cols, divider, m.optionsView())
+	}
+	body := lipgloss.JoinHorizontal(lipgloss.Top, cols...)
 	return lipgloss.JoinVertical(lipgloss.Left, header, body, m.footerView())
 }
 
@@ -469,7 +512,13 @@ func (m Model) sidebarView() string {
 }
 
 func (m Model) countLine() string {
-	s := fmt.Sprintf("%d/%d fonts · %d selected", len(m.items), len(m.cat.Entries), m.state.SelectedCount())
+	n := 0
+	for _, it := range m.items {
+		if !it.IsHeader() {
+			n++
+		}
+	}
+	s := fmt.Sprintf("%d/%d fonts · %d selected", n, len(m.cat.Entries), m.state.SelectedCount())
 	if m.loading {
 		s += " · loading"
 	}
@@ -478,12 +527,25 @@ func (m Model) countLine() string {
 
 func (m Model) itemView(i int) string {
 	it := m.items[i]
-	mark := styles.dim.Render("○ ")
-	if m.state.IsSelected(it.Name) {
-		mark = styles.selected.Render("● ")
+	var row string
+	if it.IsHeader() {
+		mark := styles.dim.Render("▸ ")
+		if m.state.GroupSelected(it.Header) {
+			mark = styles.selected.Render("● ")
+		}
+		count := fmt.Sprintf(" %d", it.Count)
+		row = mark + styles.header.Render(truncate(it.Header, sidebarWidth-4-len(count))) + styles.dim.Render(count)
+	} else {
+		mark := styles.dim.Render("○ ")
+		if m.state.IsSelected(it.Name) {
+			mark = styles.selected.Render("● ")
+		}
+		dups := ""
+		if it.Dups > 0 {
+			dups = fmt.Sprintf(" +%d", it.Dups)
+		}
+		row = mark + highlight(truncate(it.Name, sidebarWidth-4-len(dups)), it.Matched) + styles.dim.Render(dups)
 	}
-	name := highlight(truncate(it.Name, sidebarWidth-4), it.Matched)
-	row := mark + name
 	if i == m.cursor {
 		cur := styles.cursor
 		if m.focus == focusText {
@@ -498,11 +560,13 @@ func (m Model) footerView() string {
 	var keys string
 	switch m.focus {
 	case focusText:
-		keys = "type text · enter: new line · tab: search · pgup/pgdn: scroll · ctrl+c: quit"
+		keys = "ctrl+o: options · type text · enter: new line · tab: search · pgup/pgdn: scroll · ctrl+c: quit"
 	case focusSearch:
-		keys = "type to filter · ↑/↓: move · enter: select · esc: clear · tab: list"
+		keys = "ctrl+o: options · type to filter · ↑/↓: move · enter: select · esc: clear · tab: list"
 	case focusList:
-		keys = "↑/↓ j/k: move · space: select · x: clear selection · /: search · tab: text · q: quit"
+		keys = "ctrl+o: options · ↑/↓ j/k: move · space: select · x: clear selection · /: search · tab: text · q: quit"
+	case focusOptions:
+		keys = "↑/↓ j/k: move · space: toggle · ←/→: group by · tab: text · esc/ctrl+o: close options"
 	}
 	return styles.dim.Render(truncate(keys, m.width))
 }
