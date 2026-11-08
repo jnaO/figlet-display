@@ -9,7 +9,7 @@ Planning lives in GitHub issues on `jnaO/figlet-font-preview`: Stories carry the
 ```
 cmd/figlet-font-preview → tui → display → fontclass → catalog → figfont
                        ├──→ catalog
-                       └──→ figfont (Center)
+                       └──→ figfont (Center, Trim)
 ```
 
 Nothing below `internal/tui` imports Bubble Tea, bubbles or lipgloss (check: `go list -deps ./internal/figfont ./internal/catalog ./internal/display ./internal/fontclass | grep charmbracelet` prints nothing). A second front-end (e.g. a desktop GUI) drives `display.State` and `catalog.Catalog` directly.
@@ -42,6 +42,8 @@ internal/tui/
                    slideMsg, panelW feeds previewWidth): optionRows (Center, Collapse, Group by, Similar to the
                    cursor font, one row per facet value, Clear filters), applyOption, itemsChanged (keeps the
                    cursor font), buildIndex/indexMsg
+  copy.go          global ctrl+y: copyCursor renders the cursor font as the preview does (width, Center), figfont.Trim,
+                   then writeClipboard (atotto/clipboard: pbcopy on macOS; a var tests replace); footer status clears after statusFor
   lolcat.go        rainbow colouring of the cursor font (lolcat -S 20 -p 7 -F 0.05 equivalent) on the tint background
   styles.go        all lipgloss styles (adaptive light/dark)
 ```

@@ -57,6 +57,7 @@ The selection is kept while you search and when you clear the search. The previe
 | list | `/` | jump to search |
 | list | `esc` | clear the search |
 | anywhere | `ctrl+o` | open or close the options pane |
+| anywhere | `ctrl+y` | copy the cursor font's render to the clipboard as plain text, wrapped and centred as shown |
 | list | `q` | quit |
 | options | `↑` / `↓`, `j` / `k` | move |
 | options | `space` / `enter` | toggle the row |
