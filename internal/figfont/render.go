@@ -361,6 +361,34 @@ func Center(lines []string, height, width int) []string {
 	return out
 }
 
+// Trim strips trailing spaces from every line, the leading spaces all
+// non-blank lines share, and blank lines at the start and end.
+func Trim(lines []string) []string {
+	out := make([]string, len(lines))
+	indent := -1
+	for i, l := range lines {
+		out[i] = strings.TrimRight(l, " ")
+		if out[i] != "" {
+			n := len(out[i]) - len(strings.TrimLeft(out[i], " "))
+			if indent < 0 || n < indent {
+				indent = n
+			}
+		}
+	}
+	for i, l := range out {
+		if l != "" {
+			out[i] = l[indent:]
+		}
+	}
+	for len(out) > 0 && out[0] == "" {
+		out = out[1:]
+	}
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+	return out
+}
+
 // at returns s[i], or 0 (C's terminator) outside the slice.
 func at(s []rune, i int) rune {
 	if i < 0 || i >= len(s) {

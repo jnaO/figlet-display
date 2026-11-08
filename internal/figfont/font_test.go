@@ -100,3 +100,11 @@ func TestStrtol(t *testing.T) {
 		t.Error("expected no number")
 	}
 }
+
+func TestTrim(t *testing.T) {
+	got := Trim([]string{"  ", "    ab  ", "", "  abcd", "   c ", ""})
+	want := []string{"  ab", "", "abcd", " c"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Trim = %q, want %q", got, want)
+	}
+}
