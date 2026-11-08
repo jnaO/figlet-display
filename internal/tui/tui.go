@@ -60,6 +60,9 @@ type Model struct {
 	prevFocus            focus // focus to return to when the pane closes
 	optCursor, optOffset int
 
+	status   string // transient footer message
+	statusID int
+
 	width, height int
 	ready         bool
 }
@@ -139,6 +142,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.itemsChanged()
 		return m, nil
 
+	case copiedMsg:
+		return m, m.copied(msg)
+
+	case clearStatusMsg:
+		if msg.id == m.statusID {
+			m.status = ""
+		}
+		return m, nil
+
 	case tea.MouseMsg:
 		var cmd tea.Cmd
 		m.preview, cmd = m.preview.Update(msg)
@@ -164,6 +176,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "ctrl+o":
 		return m, m.toggleOptions()
+	case "ctrl+y":
+		return m, m.copyCursor()
 	case "tab":
 		return m, m.setFocus(m.nextFocus(1))
 	case "shift+tab":
@@ -560,13 +574,16 @@ func (m Model) footerView() string {
 	var keys string
 	switch m.focus {
 	case focusText:
-		keys = "ctrl+o: options · type text · enter: new line · tab: search · pgup/pgdn: scroll · ctrl+c: quit"
+		keys = "ctrl+o: options · ctrl+y: copy · type text · enter: new line · tab: search · pgup/pgdn: scroll · ctrl+c: quit"
 	case focusSearch:
-		keys = "ctrl+o: options · type to filter · ↑/↓: move · enter: select · esc: clear · tab: list"
+		keys = "ctrl+o: options · ctrl+y: copy · type to filter · ↑/↓: move · enter: select · esc: clear · tab: list"
 	case focusList:
-		keys = "ctrl+o: options · ↑/↓ j/k: move · space: select · x: clear selection · /: search · tab: text · q: quit"
+		keys = "ctrl+o: options · ctrl+y: copy · ↑/↓ j/k: move · space: select · x: clear selection · /: search · tab: text · q: quit"
 	case focusOptions:
-		keys = "↑/↓ j/k: move · space: toggle · ←/→: group by · tab: text · esc/ctrl+o: close options"
+		keys = "ctrl+y: copy · ↑/↓ j/k: move · space: toggle · ←/→: group by · tab: text · esc/ctrl+o: close options"
+	}
+	if m.status != "" {
+		return styles.label.Render(truncate(m.status, m.width))
 	}
 	return styles.dim.Render(truncate(keys, m.width))
 }

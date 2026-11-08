@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jnaO/figlet-font-preview/internal/catalog"
@@ -78,6 +80,8 @@ func key(m Model, keys ...string) Model {
 			msg = tea.KeyMsg{Type: tea.KeyRight}
 		case "ctrl+o":
 			msg = tea.KeyMsg{Type: tea.KeyCtrlO}
+		case "ctrl+y":
+			msg = tea.KeyMsg{Type: tea.KeyCtrlY}
 		default:
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 		}
@@ -198,5 +202,27 @@ func TestGroupedSidebarHeaders(t *testing.T) {
 	}
 	if m = key(m, "space"); m.state.SelectedCount() != 0 {
 		t.Fatal("header should deselect a fully selected group")
+	}
+}
+
+func TestCopyCursorFontCentredAndTrimmed(t *testing.T) {
+	var got string
+	writeClipboard = func(s string) error { got = s; return nil }
+	t.Cleanup(func() { writeClipboard = clipboard.WriteAll })
+
+	m := testModel(t, 2)
+	m.state.Center = true
+	m.text.SetValue("ab\nabcd")
+	m.state.Text = m.text.Value()
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlY})
+	m = next.(Model)
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+
+	if want := "  a|b|\n  a|b|\na|b|c|d|\na|b|c|d|\n"; got != want {
+		t.Fatalf("clipboard = %q, want %q", got, want)
+	}
+	if !strings.Contains(m.footerView(), "copied f00") {
+		t.Fatalf("footer %q lacks the copy status", m.footerView())
 	}
 }
